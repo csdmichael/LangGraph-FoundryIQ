@@ -173,8 +173,9 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
-# fill APIM_BASE_URL / APIM_SUBSCRIPTION_KEY (or leave APIM_BASE_URL blank
-# to use DefaultAzureCredential directly against Foundry for dev)
+# fill APIM_BASE_URL and APIM_SUBSCRIPTION_KEY — both REQUIRED.
+# All Foundry traffic goes through the APIM AI Gateway (private VNET);
+# direct Foundry access is disabled.
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -261,6 +262,7 @@ Brand & dark-mode tokens are in [ui/src/theme/variables.scss](ui/src/theme/varia
 
 ## Security model
 
+- **APIM is the only path to Foundry.** The API has no direct-Foundry code path; if `APIM_BASE_URL` / `APIM_SUBSCRIPTION_KEY` aren't set, the client refuses to start.
 - **No Foundry secrets on the cluster.** The API only ever sends the APIM subscription key; APIM swaps it for a managed-identity Entra token bound to Foundry.
 - **Private networking end-to-end.** APIM lives in the VNET; the Foundry, AI Search, Content Safety, and embeddings backends are all reached via Private Endpoint.
 - **AKS Workload Identity** federates the API’s ServiceAccount to a UAMI for direct Azure SDK calls (Key Vault, AI Search) when needed.

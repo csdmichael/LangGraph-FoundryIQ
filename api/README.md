@@ -9,7 +9,7 @@ cd api
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-Copy-Item .env.example .env   # fill in APIM key / Foundry endpoint
+Copy-Item .env.example .env   # fill APIM_BASE_URL + APIM_SUBSCRIPTION_KEY (both required — APIM is the only path to Foundry)
 uvicorn app.main:app --reload --port 8000
 ```
 
