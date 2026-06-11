@@ -1,0 +1,81 @@
+<!--
+  APIM AI-Gateway policy for the Foundry Agents API.
+
+  Effect:
+    * authenticates the inbound call with the APIM subscription key
+    * stamps a managed-identity Entra token onto the outbound call to Foundry
+      (so the LangGraph service never holds Foundry creds)
+    * enforces a per-minute token-budget per subscription key
+    * runs a semantic cache to avoid re-running identical prompts
+    * passes the call to the Foundry Agents private endpoint inside the VNET
+
+  Backend `foundry-agents-backend` must be defined in APIM as the private
+  Foundry endpoint (Microsoft.CognitiveServices/accounts URL exposed over a
+  private endpoint into the APIM VNET).
+-->
+<policies>
+  <inbound>
+    <base />
+
+    <!-- 1. Identity / governance -->
+    <validate-azure-ad-token tenant-id="{{tenant-id}}" required-claims="@(new[]{ new JObject(new JProperty(\"name\",\"roles\"), new JProperty(\"match\",\"any\"), new JProperty(\"values\", new JArray(\"FoundryIQ.Caller\"))) })" output-token-variable-name="caller-token" failed-validation-httpcode="401" failed-validation-error-message="Caller missing FoundryIQ.Caller role." />
+
+    <!-- 2. Token-budget guardrail (per subscription, per minute) -->
+    <azure-openai-token-limit
+        tokens-per-minute="60000"
+        counter-key="@(context.Subscription?.Id ?? "anonymous")"
+        estimate-prompt-tokens="true"
+        tokens-consumed-header-name="x-ai-tokens-consumed"
+        remaining-tokens-header-name="x-ai-tokens-remaining" />
+
+    <!-- 3. Content safety prompt-shield (jailbreak detection) -->
+    <llm-content-safety backend-id="contentsafety-backend">
+      <categories output-type="EightSeverityLevels">
+        <category name="Hate" threshold="2" />
+        <category name="Violence" threshold="2" />
+        <category name="SelfHarm" threshold="2" />
+        <category name="Sexual" threshold="2" />
+      </categories>
+      <shield-prompt>true</shield-prompt>
+    </llm-content-safety>
+
+    <!-- 4. Semantic cache so identical SP-search prompts skip Foundry -->
+    <azure-openai-semantic-cache-lookup
+        score-threshold="0.05"
+        embeddings-backend-id="embeddings-backend"
+        embeddings-backend-auth="system-assigned-managed-identity"
+        ignore-system-messages="true" />
+
+    <!-- 5. Outbound auth: swap APIM subscription for Entra MI token -->
+    <authentication-managed-identity
+        resource="https://ai.azure.com"
+        output-token-variable-name="foundry-mi-token" />
+    <set-header name="Authorization" exists-action="override">
+      <value>@("Bearer " + (string)context.Variables["foundry-mi-token"])</value>
+    </set-header>
+    <set-header name="Ocp-Apim-Subscription-Key" exists-action="delete" />
+
+    <!-- 6. Route to Foundry behind private endpoint -->
+    <set-backend-service backend-id="foundry-agents-backend" />
+  </inbound>
+
+  <backend>
+    <forward-request timeout="120" />
+  </backend>
+
+  <outbound>
+    <base />
+    <azure-openai-semantic-cache-store duration="300" />
+    <!-- Structured trace for App Insights -->
+    <trace source="foundry-ai-gateway" severity="information">
+      <message>@($"foundry sp-search call by sub={context.Subscription?.Id} status={context.Response.StatusCode}")</message>
+    </trace>
+  </outbound>
+
+  <on-error>
+    <base />
+    <set-header name="x-ai-gateway-error" exists-action="override">
+      <value>@(context.LastError.Reason ?? "unknown")</value>
+    </set-header>
+  </on-error>
+</policies>

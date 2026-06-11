@@ -1,0 +1,27 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+.env
+.pytest_cache/
+.mypy_cache/
+
+# --- Node / Angular / Ionic ---
+node_modules/
+www/
+dist/
+out-tsc/
+.angular/
+*.log
+
+# --- IDE / OS ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# --- Build artifacts ---
+*.zip
+*.tgz

@@ -1,0 +1,147 @@
+<!--
+  Responsive 3-tier layout:
+    - mobile  : header + chat only, prompts/profile inside an ion-menu (slide-out)
+    - tablet  : 2-column (left rail with prompts/profile, right chat)
+    - desktop : 3-column (profile rail · chat · prompts rail)
+-->
+
+<!-- Slide-out menu used on mobile (and as a manual launcher on any device) -->
+<ion-menu side="start" menuId="side-menu" contentId="main-content">
+  <ion-header>
+    <ion-toolbar color="primary">
+      <ion-title>Suggestions</ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="newConversation()">
+          <ion-icon slot="icon-only" name="refresh-outline" />
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+  <ion-content class="menu-content">
+    <app-profile-card />
+    <h3 class="section-title">Try one of these</h3>
+    <app-prompt-grid
+      [prompts]="samplePrompts()"
+      device="mobile"
+      (picked)="pickPrompt($event)"
+    />
+  </ion-content>
+</ion-menu>
+
+<div class="ion-page" id="main-content">
+  <ion-header [translucent]="true">
+    <ion-toolbar>
+      <ion-buttons slot="start" *ngIf="isMobile()">
+        <ion-menu-button menu="side-menu" />
+      </ion-buttons>
+      <ion-title class="brand">
+        <ion-icon name="sparkles-outline" />
+        <span>LangGraph × Foundry IQ</span>
+      </ion-title>
+      <ion-buttons slot="end">
+        <ion-button (click)="newConversation()" title="New conversation">
+          <ion-icon slot="icon-only" name="refresh-outline" />
+        </ion-button>
+      </ion-buttons>
+    </ion-toolbar>
+  </ion-header>
+
+  <ion-content [fullscreen]="true">
+    <div
+      class="chat-shell"
+      [class.layout-mobile]="isMobile()"
+      [class.layout-tablet]="isTablet()"
+      [class.layout-desktop]="isDesktop()"
+    >
+      <!-- LEFT RAIL — visible on tablet + desktop -->
+      <aside class="rail-left" *ngIf="!isMobile()">
+        <app-profile-card />
+        <div class="surface-card section">
+          <h3 class="section-title">About this app</h3>
+          <p class="muted">
+            Custom <b>LangGraph</b> agent running on AKS, calling the
+            <b>Foundry IQ</b> agent <code>sp-search</code> through the APIM AI
+            Gateway with SharePoint indexes as the knowledge source.
+          </p>
+        </div>
+      </aside>
+
+      <!-- CENTER — chat -->
+      <main class="chat-pane surface-card">
+        <div class="msgs" #scrollContainer>
+          <ng-container *ngIf="messages().length === 0; else hasMsgs">
+            <div class="empty">
+              <div class="empty-icon">
+                <ion-icon name="chatbubbles-outline" />
+              </div>
+              <h2>Ask the SharePoint search agent anything</h2>
+              <p class="muted">
+                Pick a suggested prompt
+                <ng-container *ngIf="isMobile()">from the menu</ng-container>
+                <ng-container *ngIf="isTablet()">on the left</ng-container>
+                <ng-container *ngIf="isDesktop()">on the right</ng-container>,
+                or type your own question below.
+              </p>
+              <!-- On tablet, also surface 4 prompts inline for quick taps -->
+              <ng-container *ngIf="isTablet()">
+                <app-prompt-grid
+                  [prompts]="samplePrompts().slice(0, 4)"
+                  device="tablet"
+                  (picked)="pickPrompt($event)"
+                />
+              </ng-container>
+            </div>
+          </ng-container>
+          <ng-template #hasMsgs>
+            <app-chat-message
+              *ngFor="let m of messages(); let i = index"
+              [message]="m"
+            />
+          </ng-template>
+        </div>
+      </main>
+
+      <!-- RIGHT RAIL — visible on desktop only (prompts) -->
+      <aside class="rail-right" *ngIf="isDesktop()">
+        <div class="surface-card section">
+          <h3 class="section-title">Sample prompts</h3>
+          <p class="muted small">
+            Grounded in the SharePoint indexes in the <code>ai-search-my</code>
+            search service.
+          </p>
+        </div>
+        <app-prompt-grid
+          [prompts]="samplePrompts()"
+          device="desktop"
+          (picked)="pickPrompt($event)"
+        />
+      </aside>
+    </div>
+  </ion-content>
+
+  <ion-footer>
+    <ion-toolbar class="composer-toolbar">
+      <div class="composer">
+        <ion-textarea
+          [(ngModel)]="draft"
+          (keydown)="onKey($event)"
+          [autoGrow]="true"
+          [rows]="1"
+          [maxlength]="4000"
+          placeholder="Ask Foundry IQ anything…"
+          fill="outline"
+          class="composer-input"
+        />
+        <ion-button
+          (click)="send()"
+          [disabled]="sending() || !draft.trim()"
+          color="primary"
+          class="send-btn"
+        >
+          <ion-icon slot="start" name="send-outline" />
+          <span *ngIf="!isMobile()">Send</span>
+        </ion-button>
+      </div>
+    </ion-toolbar>
+  </ion-footer>
+</div>

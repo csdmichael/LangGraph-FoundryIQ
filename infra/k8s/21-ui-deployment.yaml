@@ -1,0 +1,55 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langgraph-foundryiq-ui
+  namespace: langgraph-foundryiq
+  labels:
+    app: langgraph-foundryiq-ui
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: langgraph-foundryiq-ui
+  template:
+    metadata:
+      labels:
+        app: langgraph-foundryiq-ui
+    spec:
+      containers:
+        - name: ui
+          image: <ACR_NAME>.azurecr.io/langgraph-foundryiq-ui:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+              name: http
+          readinessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests: { cpu: "50m", memory: "64Mi" }
+            limits:   { cpu: "300m", memory: "256Mi" }
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 101
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langgraph-foundryiq-ui
+  namespace: langgraph-foundryiq
+spec:
+  type: ClusterIP
+  selector:
+    app: langgraph-foundryiq-ui
+  ports:
+    - port: 80
+      targetPort: http
+      name: http

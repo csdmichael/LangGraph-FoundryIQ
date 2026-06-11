@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: langgraph-foundryiq
+data:
+  AZURE_SUBSCRIPTION_ID: "86b37969-9445-49cf-b03f-d8866235171c"
+  AZURE_RESOURCE_GROUP:  "ai-myaacoub"
+  FOUNDRY_PROJECT_NAME:  "proj-default"
+  FOUNDRY_ACCOUNT_NAME:  "002-ai-poc-private"
+  FOUNDRY_AGENT_ID:      "sp-search"
+  APIM_BASE_URL:         "https://ai-gateway-apim-poc-my.azure-api.net"
+  APIM_FOUNDRY_PATH:     "/foundry/agents"
+  AZURE_SEARCH_ENDPOINT: "https://ai-search-my.search.windows.net"
+  AZURE_SEARCH_INDEX_NAME: "sp-search-index"
+  LOG_LEVEL: "INFO"
+  CORS_ORIGINS: "https://foundryiq.internal.contoso.com,http://localhost:8100"
+---
+# Secrets should be created out-of-band (kubectl create secret) or projected from
+# Azure Key Vault via the AKS Secrets Store CSI Driver. Stub shown for clarity.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: api-secrets
+  namespace: langgraph-foundryiq
+type: Opaque
+stringData:
+  APIM_SUBSCRIPTION_KEY: "REPLACE_WITH_APIM_KEY_OR_USE_CSI"
+  AZURE_SEARCH_API_KEY:  "REPLACE_OR_USE_MANAGED_IDENTITY"

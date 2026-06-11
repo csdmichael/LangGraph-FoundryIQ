@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: langgraph-foundryiq-api
+  namespace: langgraph-foundryiq
+  labels:
+    app: langgraph-foundryiq-api
+spec:
+  replicas: 2
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: langgraph-foundryiq-api
+  template:
+    metadata:
+      labels:
+        app: langgraph-foundryiq-api
+        azure.workload.identity/use: "true"
+    spec:
+      serviceAccountName: langgraph-foundryiq-api
+      automountServiceAccountToken: true
+      containers:
+        - name: api
+          image: <ACR_NAME>.azurecr.io/langgraph-foundryiq-api:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+              name: http
+          envFrom:
+            - configMapRef:
+                name: api-config
+            - secretRef:
+                name: api-secrets
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "1000m"
+              memory: "1Gi"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: langgraph-foundryiq-api
+  namespace: langgraph-foundryiq
+spec:
+  type: ClusterIP
+  selector:
+    app: langgraph-foundryiq-api
+  ports:
+    - port: 8000
+      targetPort: http
+      name: http
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: langgraph-foundryiq-api
+  namespace: langgraph-foundryiq
+  annotations:
+    # Workload Identity → federated to a Foundry-permitted UAMI.
+    azure.workload.identity/client-id: "<UAMI_CLIENT_ID>"

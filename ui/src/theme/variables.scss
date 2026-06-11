@@ -1,0 +1,32 @@
+/* Ionic theming — overridable per-platform via :host-context modifiers. */
+:root {
+  --ion-color-primary: #5b3df5;          /* Foundry purple */
+  --ion-color-primary-rgb: 91, 61, 245;
+  --ion-color-primary-contrast: #ffffff;
+  --ion-color-primary-contrast-rgb: 255, 255, 255;
+  --ion-color-primary-shade: #5036d8;
+  --ion-color-primary-tint: #6b51f6;
+
+  --ion-color-secondary: #0a84ff;
+  --ion-color-tertiary: #00c2a8;
+  --ion-color-success: #2dd36f;
+  --ion-color-warning: #ffc409;
+  --ion-color-danger:  #eb445a;
+
+  --app-bg-elevated: #ffffff;
+  --app-bg-canvas:   #f6f7fb;
+  --app-text-muted:  #6b7280;
+  --app-shadow-card: 0 8px 24px rgba(16, 24, 40, 0.06);
+  --app-radius-lg:   16px;
+  --app-radius-md:   12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --app-bg-elevated: #1a1c24;
+    --app-bg-canvas:   #0f1115;
+    --app-text-muted:  #a1a7b3;
+    --ion-background-color: #0f1115;
+    --ion-text-color: #f4f4f5;
+  }
+}

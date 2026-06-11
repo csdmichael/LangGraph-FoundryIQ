@@ -1,0 +1,14 @@
+Refer to Architecture.png for implementation
+
+Subscription: 86b37969-9445-49cf-b03f-d8866235171c
+Resource Group: ai-myaacoub
+APIM Url: https://portal.azure.com/#@MngEnvMCAP829495.onmicrosoft.com/resource/subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.ApiManagement/service/ai-gateway-apim-poc-my/apim-apis
+Foundry Agent: https://ai.azure.com/nextgen/r/hrN5aZRFSc-wP9iGYjUXHA,ai-myaacoub,,002-ai-poc-private,proj-default/build/agents/sp-search
+AI Search: https://portal.azure.com/#@MngEnvMCAP829495.onmicrosoft.com/resource/subscriptions/86b37969-9445-49cf-b03f-d8866235171c/resourceGroups/ai-myaacoub/providers/Microsoft.Search/searchServices/ai-search-my/dataSources
+
+Implement an API that uses LangGraph Agents and integrate them with Foundry IQ. the foundry agent url is mentioned above and it needs to go through APIM as AI Gateway in private vnet with private endpoints. 
+Add AI search indexes mentioned in ai search url as knowledge sources for the agent. Then leverage Foundry APIs to expose the Foundry agent to langgraph agent.
+Implement a UI in Ionic, Angular, Typescript that can render on web, mobile, ipad with different layout for each device to maximize user experience quality.
+In UI, add sample 10 prompts that are based on data from ai search indexes. The prompt get sent from ui to api that has langgraph agent that communicates to Foundry IQ via APIM.
+In UI, add my name (Michael Yaacoub) and job title (Sr. Solution Engineer) and my github url (https://github.com/csdmichael) and linkedIn (https://www.linkedin.com/in/michael-yaacoub-7a46436/)
+Add readme with TOC that has architecture diagram, project description, folder structure, any relevant information to explain project

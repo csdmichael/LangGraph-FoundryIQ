@@ -1,0 +1,30 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: langgraph-foundryiq-ingress
+  namespace: langgraph-foundryiq
+  annotations:
+    kubernetes.io/ingress.class: webapprouting.kubernetes.azure.com
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  rules:
+    - host: foundryiq.internal.contoso.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: langgraph-foundryiq-api
+                port:
+                  number: 8000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: langgraph-foundryiq-ui
+                port:
+                  number: 80
+  tls:
+    - hosts: ["foundryiq.internal.contoso.com"]
+      secretName: foundryiq-tls
