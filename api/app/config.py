@@ -26,9 +26,8 @@ class Settings(BaseSettings):
     foundry_project_name: str = Field(default="proj-default")
     foundry_account_name: str = Field(default="002-ai-poc-private")
     foundry_agent_id: str = Field(default="sp-search")
-    foundry_project_endpoint: str = Field(default="")
 
-    # --- APIM AI Gateway ---
+    # --- APIM AI Gateway (mandatory — only path to Foundry) ---
     apim_base_url: str = Field(default="")
     apim_foundry_path: str = Field(default="/foundry/agents")
     apim_subscription_key: str = Field(default="")
@@ -48,12 +47,15 @@ class Settings(BaseSettings):
 
     @property
     def foundry_gateway_url(self) -> str:
-        """Resolve the Foundry agent URL — prefer APIM, fall back to direct."""
-        if self.apim_base_url:
-            base = self.apim_base_url.rstrip("/")
-            path = self.apim_foundry_path.strip("/")
-            return f"{base}/{path}"
-        return self.foundry_project_endpoint.rstrip("/")
+        """Resolve the Foundry agent URL via APIM. APIM is required."""
+        if not self.apim_base_url:
+            raise RuntimeError(
+                "APIM_BASE_URL is not configured. All Foundry traffic must flow "
+                "through the APIM AI Gateway — direct Foundry access is disabled."
+            )
+        base = self.apim_base_url.rstrip("/")
+        path = self.apim_foundry_path.strip("/")
+        return f"{base}/{path}"
 
 
 @lru_cache

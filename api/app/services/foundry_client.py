@@ -1,9 +1,10 @@
 """
 Foundry Agent client.
 
-Routes all traffic through the APIM AI Gateway (private VNET + private endpoints
-to Foundry). Falls back to the direct Foundry project endpoint with Entra ID
-(DefaultAzureCredential) when APIM is not configured — useful for local dev.
+Routes ALL traffic through the APIM AI Gateway (private VNET + private
+endpoints to Foundry). Direct Foundry access is disabled by design — APIM
+owns Entra auth (managed identity), token-limit, content safety, and
+semantic cache. The client only needs to send the APIM subscription key.
 
 Foundry Agent REST surface (v1) used:
   POST {base}/threads                                  -> create thread
@@ -11,17 +12,11 @@ Foundry Agent REST surface (v1) used:
   POST {base}/threads/{thread_id}/runs                 -> start run (agent_id)
   GET  {base}/threads/{thread_id}/runs/{run_id}        -> poll run
   GET  {base}/threads/{thread_id}/messages             -> read messages
-
-When traffic goes through APIM the gateway terminates Entra auth (managed
-identity / client cert) and applies AI-Gateway policies (token-limit, semantic
-cache, content safety, logging). The client only needs to send the APIM
-subscription key.
 """
 from __future__ import annotations
 
 import asyncio
 import logging
-import time
 from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
@@ -49,11 +44,10 @@ class FoundryAgentClient:
 
     def __init__(self, settings: Optional[Settings] = None) -> None:
         self.settings = settings or get_settings()
+        # Will raise if APIM_BASE_URL is unset — enforced at config layer.
         self._base_url = self.settings.foundry_gateway_url
         self._agent_id = self.settings.foundry_agent_id
-        self._use_apim = bool(self.settings.apim_base_url)
         self._client: Optional[httpx.AsyncClient] = None
-        self._entra_token: Optional[Tuple[str, float]] = None  # (token, exp)
 
     # ----------------------------- lifecycle --------------------------------
 
@@ -73,40 +67,18 @@ class FoundryAgentClient:
 
     # ------------------------------ auth ------------------------------------
 
-    async def _auth_headers(self) -> Dict[str, str]:
-        """Build the per-request auth headers."""
+    def _auth_headers(self) -> Dict[str, str]:
+        """Build the per-request auth headers. APIM swaps the subscription
+        key for an Entra MI token before forwarding to Foundry, so the client
+        never holds Foundry creds."""
         headers: Dict[str, str] = {"Content-Type": "application/json"}
-        if self._use_apim:
-            # APIM terminates Entra; we just present the subscription key.
-            if self.settings.apim_subscription_key:
-                headers["Ocp-Apim-Subscription-Key"] = self.settings.apim_subscription_key
-            return headers
-
-        # Direct Foundry path — Entra token via DefaultAzureCredential.
-        token = await self._get_entra_token()
-        if token:
-            headers["Authorization"] = f"Bearer {token}"
+        if not self.settings.apim_subscription_key:
+            raise RuntimeError(
+                "APIM_SUBSCRIPTION_KEY is not configured. The Foundry agent "
+                "can only be reached through the APIM AI Gateway."
+            )
+        headers["Ocp-Apim-Subscription-Key"] = self.settings.apim_subscription_key
         return headers
-
-    async def _get_entra_token(self) -> Optional[str]:
-        """Acquire a Foundry-scoped Entra token (cached for ~50 min)."""
-        now = time.time()
-        if self._entra_token and self._entra_token[1] - 60 > now:
-            return self._entra_token[0]
-        try:
-            # Lazy import — only needed in non-APIM mode.
-            from azure.identity.aio import DefaultAzureCredential
-
-            cred = DefaultAzureCredential()
-            try:
-                token = await cred.get_token("https://ai.azure.com/.default")
-            finally:
-                await cred.close()
-            self._entra_token = (token.token, float(token.expires_on))
-            return token.token
-        except Exception as exc:  # noqa: BLE001
-            logger.warning("Entra token acquisition failed: %s", exc)
-            return None
 
     # ---------------------------- low-level ---------------------------------
 
@@ -118,7 +90,7 @@ class FoundryAgentClient:
         self, method: str, path: str, *, json_body: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         assert self._client is not None, "FoundryAgentClient not entered"
-        headers = await self._auth_headers()
+        headers = self._auth_headers()
         url = self._url(path)
         async for attempt in AsyncRetrying(
             stop=stop_after_attempt(3),

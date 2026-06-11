@@ -4,9 +4,8 @@ additional keyword/vector pass over Foundry IQ knowledge sources if desired.
 
 In the default architecture, Foundry IQ owns retrieval and the Foundry agent
 returns grounded answers via APIM. This client is provided so the LangGraph
-graph can:
-  * surface "related documents" alongside the agent answer, or
-  * be used as a fallback when the Foundry run fails.
+graph can surface "related documents" alongside the agent answer (enrichment
+only — it is **not** a fallback path around APIM/Foundry).
 """
 from __future__ import annotations
 
